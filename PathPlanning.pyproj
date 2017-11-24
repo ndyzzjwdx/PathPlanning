@@ -30,6 +30,9 @@
     <Compile Include="model\ppmodel.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="model\pppreprocessing.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="model\__init__.py">
       <SubType>Code</SubType>
     </Compile>
