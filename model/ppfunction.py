@@ -35,6 +35,10 @@ from six.moves import urllib
 def get_fpath():
     return 'oss://pathplaning/'
 
+# 读取本地路径
+def get_fpath_local():
+    return  'C:/0/FutureWeather/'
+
 # 阿里云平台OSS文件导入
 def load_file_oss(dirname, loadname):
     fpath = os.path.join(dirname, loadname)
@@ -49,70 +53,104 @@ def save_file_oss(data, dirname, savename):
         return False
     return True
 
-# 单行字符串转化为数字列表
-def str_to_list(str, sign = ','):
-    data_str = str.split(sign)
-    data = list()
-    for elem in data_str:
-        try:
-            data.append(int(elem))
-        except Exception:
-            try:
-                data.append(float(elem))
-            except Exception:
-                data = []
-                break
-    
-    return data
+# 本地文件导入
+def load_file_local(dirname, filename):
+    if os.path.exists(dirname):
+        fp = open(os.path.join(dirname, filename))
+        return fp
+    else:
+        print('cannot open the file {}'.format(filename))
+        return 0
 
-# 单行数字列表转化为字符串
+# 本地文件导出
+def save_file_local(data, dirname, savename):
+    fh = open(os.path.join(dirname, savename), 'w')
+    fh.write(data)
+    fh.close()
+    return 0
+
+# 获取目录下文件名
+def get_filename(dirname, dirname_middle, suffix):   
+    L = list()
+    for root, dirs, files in os.walk(os.path.join(dirname, dirname_middle)):  
+        for file in files:  
+            if os.path.splitext(file)[1] == suffix:  
+                L.append(file)  
+    return L 
+
+# 单行字符串转化为列表
+def str_to_list(str, sign = ',', type = str):
+    data_list = [type(elem) for elem in str.split(sign)]    
+    return data_list
+
+# 单行列表转化为字符串
 def list_to_str(data, sign = ','):
     data_str =  sign.join([str(e) for e in data])
     return data_str
 
-# 自定义文件名命名规则
-def get_name(city, day):
-    name = 'c' + str(day) + 'd' + str(city);
-    return name
-
-# 导入原始数据（csv ==> data）
-# 原始数据由列名和数据组成
-def load_data(dirname, filename):    
-    object = load_file_oss(dirname, filename)        
-    data = object.split("\n")
-    data_title = data[0]
-    data_str = data[1::]
-
+# 列表转化为csv字符串
+def list_to_csv(data, data_title = ''):
     data_list = list()
     for row in data:
-        data_list.append(str_to_list(row))
-    data_table = pd.DataFrame(data, columns = data_name)
+        item = ','.join([str(e) for e in row])
+        data_list.append(item)
+    data_str = data_title + '\n'.join([elem for elem in data_list])
 
-    return data_table
+    return data_str
 
-# 保存处理数据（data ==> txt）
-# 处理数据为临时保留数据，行向量形式，'，'连接
-# object[0:1]存储行列参数
-def save_matrix(data, dirname, filename):
-    data_size = list(np.shape(data))
-    data_vector = np.ravel(data).tolist()
-    
-    data_str = list_to_str(data_size + data_vector)
-    flag = save_file_oss(data_str, dirname, filename + '.txt')
+# csv字符串转化为字符列表
+def csv_to_list(data_str, header = True):
+    data_title = []
+    data = data_str.split("\n")
+    if header:
+        data_title = data[0].split(',')
+        data = data[1::]
 
-    return flag
+    data_list = [elem.split(',') for elem in data]
 
+    return data_list, data_title
 
-# 导入处理数据（txt ==> data）
-# 处理数据为临时保留数据，行向量形式，'，'连接
-# object[0:1]存储行列参数
-def load_matrix(dirname, filename):
-    object = load_file_oss(dirname, filename)
-    data = str_to_list(object)
-    data_size = data[0:2]
-    data_vector = data[2::]
+# 取比例(含除0)
+def div(a, b):
+    if a == b == 0:
+        return 1
+    else:
+        return a / (a + b)
 
-    data_matrix = np.reshape(data_vector,data_size)
-    
-    return data_matrix
+# 自定义文件名命名规则
+def get_name(city, day):
+    name = 'c' + str(city) + 'd' + str(day);
+    return name
+
+# 导入数据（csv格式 ==> data）
+# 以字符串列表形式导入
+def load_data(dirname, filename, header = True):    
+    object = load_file_oss(dirname, filename)        
+    data, data_title = csv_to_list(object, header = header)
+    return data, data_title
+
+# 导入本地数据（csv格式 ==> data）
+# 以字符串形式导入
+def load_csv_local(dirname, filename, header = True):
+    fp = load_file_local(dirname, filename)
+    data_title = []
+    data_str = fp.readlines()
+    if header:
+        data_title = data_str[0].replace('\n','').split(',')
+        data_str = data_str[1::]
+    data_list = [elem.replace('\n','').split(',') for elem in data_str]
+
+    fp.close()
+
+    return data_list, data_title
+
+# 导入本地数据（txt格式 ==> data）
+# 默认以float类型转码导入
+def load_data_local(dirname, filename, type = float):
+    fp = load_file_local(dirname, filename)
+    data_str = fp.readline()
+    data = str_to_list(data_str, sign = ',', type = type)
+    fp.close()
+
+    return data
 

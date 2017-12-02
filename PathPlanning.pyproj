@@ -30,9 +30,6 @@
     <Compile Include="model\ppmodel.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="model\pppreprocessing.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="model\__init__.py">
       <SubType>Code</SubType>
     </Compile>
@@ -40,6 +37,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="pathtraning.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="pp_auc.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="preprocessing.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
