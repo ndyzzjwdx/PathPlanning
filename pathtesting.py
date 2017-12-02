@@ -62,6 +62,8 @@ if __name__ == '__main__':
             wind_net = ppm.create_wind_net(wind_train, ori, goal, time = time_start * 60)
             # 计算风险网络
             network, bifurcation, net_conn = ppm.turn_SUI(wind_net)
+            if len(bifurcation) != 0:
+                network, bifurcation, net_conn = ppm.remove_bifurcation(wind_net, bifurcation)
             print('Net connect = ' + str(net_conn))
 
             # 路径规划

@@ -114,8 +114,8 @@ def create_wind_net(wind_table, ori, goal, time = T_START*60, offset = 0):
     return wind_net
 
 # 风险网络转化策略
-def turn_SUI(wind_table):
-    space = wind_table.shape
+def turn_SUI(wind_net):
+    space = wind_net.shape
     network = np.zeros(space)
     bifurcation = []
 
@@ -126,28 +126,32 @@ def turn_SUI(wind_table):
         for j in range(ym):
             # 读取当前点流量/下一步坐标点风速
             flow = network[i,j]
-            wx = wind_net[i+1,j]
-            wy = wind_net[i,j+1]
+            if flow != 0:
+                wx = wind_net[i+1,j]
+                wy = wind_net[i,j+1]
 
-            # 根据下一步坐标点风速分配流量
-            if wx > 1:
-                if wy > 1:
-                    param_x = 0
-                    param_y = 0
-                    bifurcation.append([i,j,flow])
+                # 根据下一步坐标点风速分配流量
+                if wx >= 1:
+                    if wy >= 1:
+                        param_x = 0
+                        param_y = 0
+                        bifurcation.append([i,j])
+                    else:
+                        param_x = 0
+                        param_y = 1
                 else:
-                    param_x = 0
-                    param_y = 1
-            else:
-                if wy > 1:
-                    param_x = 1
-                    param_y = 0
-                else:
-                    param_x = ppf.div(wy, wx)
-                    param_y = ppf.div(wx, wy)
-            # 记录流量转移
-            network[i+1, j] = network[i+1, j] + param_x * flow
-            network[i, j+1] = network[i, j+1] + param_y * flow
+                    if wy >= 1:
+                        param_x = 1
+                        param_y = 0
+                    else:
+                        # 方向修正
+                        dwy = wy * (xm - i)
+                        dwx = wx * (ym - j)
+                        param_x = ppf.div(dwy, dwx)
+                        param_y = ppf.div(dwx, dwy)
+                # 记录流量转移
+                network[i+1, j] = network[i+1, j] + param_x * flow
+                network[i, j+1] = network[i, j+1] + param_y * flow
 
     for i in range(1,space[0]):
         j = space[1] - 1
@@ -158,7 +162,43 @@ def turn_SUI(wind_table):
 
     rate_conn = network[xm, ym]
 
+    return network, bifurcation, rate_conn     
+
+# 歧点消除策略
+def remove_bifurcation(wind_net, bifurcation):
+    for dot in bifurcation:
+        wind_net = remove_dot(wind_net, dot)
+    network, bifurcation, rate_conn = turn_SUI(wind_net)
     return network, bifurcation, rate_conn
+# 歧点移除
+def remove_dot(wind_net, dot):
+    if wind_net[dot[0], dot[1]] >= 1:
+        return wind_net
+    else:
+        wind_net[dot[0], dot[1]] = 1
+        xexist = True
+        yexist = True
+    
+    try:
+        dotx = [dot[0]-1, dot[1]]
+    except IndexError:
+        xexist = False
+    finally:
+        if xexist:
+            wxb = wind_net[dot[0]-1, dot[1]+1]
+            if wxb >= 1:
+                wind_net = remove_dot(wind_net, dotx)
+    
+    try:
+        doty = [dot[0], dot[1]-1]
+    except IndexError:
+        yexist = False        
+    finally:
+        if yexist:
+            wyr = wind_net[dot[0]+1, dot[1]-1]
+            if wyr >= 1:
+                wind_net = remove_dot(wind_net, doty)
+    return wind_net
 
 # 路径选择策略
 # output: 0: x 轴移动/ 1: y 轴移动
@@ -179,8 +219,8 @@ def path_choose(network):
                 x = x + 1
                 plan_rel.append(0)
             else:        
-                a = network[x+1, y] * (xlen - x)
-                b = network[x, y+1] * (ylen - y)
+                a = network[x+1, y]
+                b = network[x, y+1]
                 if a >= b:
                     x = x + 1
                     plan_rel.append(0)
@@ -314,14 +354,4 @@ def create_SUI_conn(wind_table, wind_net, ori, goal, time = T_START*60, offset =
 
     return wind_net, time_net
 
-# 歧点消除策略
-def remove_branch(table, ori, goal):
-    branch = list()
-    time = T_START
-    step = 0
-
-    direction, length = get_direction(ori, goal)
-    [x, y] = ori
-    for x != goal[0]:
-        for y != goal[1]:
             
